@@ -62,7 +62,7 @@ model{
 	}
 ```
 
-Here `X` is the observed $^14$C age, `sigma` is the associated error and `nDate` is the sample size. The variable `theta` is the calendar year. Notice that the assumption here is that the prior for `theta` is the a uniform distribution of all calendar ages.
+Here `X` is the observed $^{14}$C age, `sigma` is the associated error and `nDate` is the sample size. The variable `theta` is the calendar year. Notice that the assumption here is that the prior for `theta` is the a uniform distribution of all calendar ages.
 
 We can check if this works:
 
