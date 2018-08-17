@@ -21,30 +21,25 @@ d=runif(N,min=0,max=5000)
 dSp1 <- d[1:threshold]
 dSp2 <- d[(threshold+1):length(d)]
 
-## diffusion before stopPoint
 #intercept (date of earliest farming at the origin)  
-alphaBeforeStop = 8000
-#beta coefficient (i.e. rate of expansion)
-betaBeforeStop=-0.8
-#standard deviation (uncertainty in the arrival date at given distance)
+alpha= 8000
+# speeds
+betaSp1 = -0.8
+betaSp2 = -0.6
 
-## diffusion after stopPoint
-alphaAfterStop = alphaBeforeStop+betaBeforeStop*stopPoint
-betaAfterStop = -0.4
-
-sigma=200
+sigmaSp1=200
+sigmaSp2=300
 
 # generation of possible dates of arrival
-arrivalBeforeStop <- rnorm(length(dBeforeStop),mean=alphaBeforeStop+betaBeforeStop*dBeforeStop,sd=sigma)
-arrivalAfterStop <- rnorm(length(dAfterStop),mean=alphaAfterStop+betaAfterStop*(dAfterStop-stopPoint),sd=sigma)
+arrivalSp1 <- rnorm(length(dSp1),mean=alpha+betaSp1*dSp1,sd=sigmaSp1)
+arrivalSp2 <- rnorm(length(dSp2),mean=alpha+betaSp2*dSp2,sd=sigmaSp2)
 
 # get the sorted list of arrivals and distances    
-arrival <- c(arrivalBeforeStop, arrivalAfterStop)
-d <- c(dBeforeStop, dAfterStop)
+arrival <- c(arrivalSp1, arrivalSp2)
 plot(d,arrival,xlab="distance from origin",ylab="calendar Year",pch=20)
 
 # theorethical model
-abline(a=alpha,b=beta,lty=2)
+abline(a=alpha,b=betaSp1,lty=2)
 logModel <- lm(arrival~d)
 # regression based on data
 abline(logModel,lty=3)
@@ -105,7 +100,7 @@ abline(v=fitted.alpha,lty=3,col="orange",lwd=2)
 abline(v=mMedians.alpha,lty=3,col="blue",lwd=2)
 legend("topleft",legend=c("true","fitted", "classic"),lty=c(2,3),col=c("indianred","orange", "blue"))
 
-hist(post.samples$beta,border=NA,col="grey",main="Posterior of Beta",xlab="beta",xlim=c(-0.3, -0.9))
+hist(post.samples$beta,border=NA,col="grey",main="Posterior of Beta",xlab="beta")
 abline(v=betaBeforeStop,lty=2,col="indianred",lwd=2)
 abline(v=betaAfterStop,lty=2,col="indianred",lwd=2)
 abline(v=fitted.beta,lty=3,col="orange",lwd=2)
