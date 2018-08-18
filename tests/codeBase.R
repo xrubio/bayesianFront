@@ -1,5 +1,5 @@
 
-source("jagsCode.R")
+source("../jagsCode.R")
 
 
 
