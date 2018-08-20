@@ -53,7 +53,7 @@ uncalibrated <- uncalibrate(arrival, calCurves = "intcal13")
 arrivalC14 = round(uncalibrated$ccCRA)
 arrivalError = sample(c(10,20,50,80,100),size=N,replace=TRUE)
 
-# 3 - 5tandard approach based on meadian
+# 3 - standard approach based on median
 arrivalCalibrated = calibrate(arrivalC14, arrivalError)
 arrivalMedian = medCal(arrivalCalibrated)
 
