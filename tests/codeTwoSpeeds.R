@@ -1,5 +1,5 @@
 
-source("jagsCode.R")
+source("../jagsCode.R")
 
 # 1- linear model in calendar time
 
