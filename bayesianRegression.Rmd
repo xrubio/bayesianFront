@@ -47,6 +47,8 @@ arrivalDates.Error = sample(c(20,30,40,50),size=N,replace=TRUE)
 ```
 
 
+# Model Fitting
+
 We now fit the model using *rJAGS*. This is done automatically by the function `jagsSpeed()`, which contains a wrapper function. The specific JAGS model implemented is an updated version of the MCMC calibration, which looks like this (and is implemented in `jagsCalibrate()`):
 
 ```
@@ -163,4 +165,83 @@ summary(lm(arrivalDates.calibratedMedian~d))
 ```
 
 Actually not so bad either?
+
+# A (slightly) more realistic scenario
+
+The model above assumes constant variance in the arrival date. This ignores the possibility that with increasing size of the wavefront there is an increased chance of heterogeneity in the diffusion process (e.g. different environment, incumbent communities with different levels of receptivity to the innovation, etc.) <!-- find references about this -->
+
+The code below 
+
+```{r}
+N=50 #number of samples
+d=runif(N,min=0,max=5000) #distance from origin
+alpha.m=8000 #intercept (date of earliest farming at the origin)
+beta.m=-0.8 #beta coefficient (i.e. rate of expansion)
+alpha.g= 0 #variability in the diffusion rate at its origin (ignoring measurement errors) 
+beta.g=0.2 #rate of increase in the variability of the rate of expansion
+```
+
+We generate possible dates of arrival:
+```{r,fig.width=5,fig.height=5}
+arrivalDates=rnorm(N,mean=alpha.m+beta.m*d,sd=alpha.g+beta.g*d) 
+plot(d,arrivalDates,xlab="distance from origin",ylab="calendar Year",pch=20)
+abline(a=alpha,b=beta,lty=2) #theorethical model
+abline(lm(arrivalDates~d),lty=3)
+fitted.alpha=coefficients(lm(arrivalDates~d))[1]
+fitted.beta=coefficients(lm(arrivalDates~d))[2]
+```
+The model is clearly heteroskedastic and hence in theory standard linear regression is not the appropriate model <!-- would be cool to check if there a signs of heteroskedasticity in empirical data -->.
+
+The function `jagsHeteroSpeed()` can fit a heteroskedastic model and estimate at the same time whether and how much does the variance change with increasing distance from origin. 
+
+
+```{r,results='hide'}
+library(rcarbon) #we use the rcarbon package
+arrivalDates.14c = round(uncalibrate(arrivalDates,calCurves = "intcal13")$ccCRA)
+arrivalDates.Error = sample(c(20,30,40,50),size=N,replace=TRUE)
+```
+
+
+```{r,results='hide'}
+post.samples=jagsHeteroSpeed(x=arrivalDates.14c,error=arrivalDates.Error,distance=d)
+post.samples=as.data.frame(post.samples[[1]])
+par(mfrow=c(2,2))
+hist(post.samples$alpha.m,col='darkorange',border=NA)
+abline(v=alpha.m,lwd=2,lty=2)
+hist(post.samples$beta.m,col='darkorange',border=NA)
+abline(v=beta.m,lwd=2,lty=2)
+hist(post.samples$alpha.g,col='darkorange',border=NA)
+abline(v=alpha.g,lwd=2,lty=2)
+hist(post.samples$beta.g,col='darkorange',border=NA)
+abline(v=beta.g,lwd=2,lty=2)
+```
+
+Notice that if the same model is applied for a non heteroskedastic diffusion process the posterior estimates of `beta.g` should be 0:
+
+
+```{r,fig.width=5,fig.height=5}
+N=50 #number of samples
+d=runif(N,min=0,max=5000) #distance from origin
+alpha=8000 #intercept (date of earliest farming at the origin)
+beta=-0.8 #beta coefficient (i.e. rate of expansion)
+sigma=200 #standard deviation (uncertainty in the arrival date at given distance)
+arrivalDates=rnorm(N,mean=alpha+beta*d,sd=sigma)
+arrivalDates.14c = round(uncalibrate(arrivalDates,calCurves = "intcal13")$ccCRA)
+arrivalDates.Error = sample(c(20,30,40,50),size=N,replace=TRUE)
+post.samples=jagsHeteroSpeed(x=arrivalDates.14c,error=arrivalDates.Error,distance=d)
+post.samples=as.data.frame(post.samples[[1]])
+par(mfrow=c(2,2))
+hist(post.samples$alpha.m,col='darkorange',border=NA)
+abline(v=alpha,lwd=2,lty=2)
+hist(post.samples$beta.m,col='darkorange',border=NA)
+abline(v=beta,lwd=2,lty=2)
+hist(post.samples$alpha.g,col='darkorange',border=NA)
+abline(v=sigma,lwd=2,lty=2)
+hist(post.samples$beta.g,col='darkorange',border=NA)
+abline(v=0,lwd=2,lty=2)
+```
+
+
+
+
 
