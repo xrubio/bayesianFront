@@ -1,7 +1,7 @@
 
 library(rcarbon)
 library(ggplot2)   
-
+library(gridExtra)    
 
 getLMParams <- function(model)
 {
@@ -21,18 +21,17 @@ estimateParams<- function(sites, excavatedPerc)
 
     # backcalibration
     uncalibrated <- uncalibrate(excavatedSites$arrival, calCurves = "intcal13")
-    arrivalC14 = round(uncalibrated$ccCRA)
     arrivalError = sample(c(10,20,50,100),size=numExcavatedSites,replace=TRUE)
     # calibration 
-    arrivalCalibrated = calibrate(arrivalC14, arrivalError)
-    excavatedSites$arrivalC14 <- medCal(arrivalCalibrated)
+    calibratedProbs = calibrate(round(uncalibrated$ccCRA), arrivalError)
+    excavatedSites$calibrated <- medCal(calibratedProbs)
 
     # C14 frequentist model
-    mWithC14 = lm(arrivalC14~distance, excavatedSites)
+    mWithC14 = lm(calibrated~distance, excavatedSites)
     mWithC14Params <- getLMParams(mWithC14)
 
     # basesian model
-    post.samples=jagsSpeed(x=arrivalC14,error=arrivalError,distance=excavatedSites$distance)
+    post.samples=jagsSpeed(x=round(uncalibrated$ccCRA),error=arrivalError,distance=excavatedSites$distance)
     post.samples=as.data.frame(post.samples[[1]])
 
     # final dataset
@@ -40,53 +39,30 @@ estimateParams<- function(sites, excavatedPerc)
     return(models)
 }
 
-estimateRawParams<- function(sites)
-{
-    # direct frequentist model
-    mDirect <- lm(arrival~distance, sites)
-    mDirectParams <- getLMParams(mDirect)
-
-    # backcalibration
-    uncalibrated <- uncalibrate(sites$arrival, calCurves = "intcal13")
-    arrivalC14 = round(uncalibrated$ccCRA)
-    arrivalError = sample(c(10,20,50,100),size=nrow(sites),replace=TRUE)
-    # calibration 
-    arrivalCalibrated = calibrate(arrivalC14, arrivalError)
-    excavatedSites$arrivalC14 <- medCal(arrivalCalibrated)
-
-    # C14 frequentist model
-    mWithC14 = lm(arrivalC14~distance, sites)
-    mWithC14Params <- getLMParams(mWithC14)
-
-    # basesian model
-    post.samples=jagsSpeed(x=arrivalC14,error=arrivalError,distance=sites$distance)
-    post.samples=as.data.frame(post.samples[[1]])
-
-    # final dataset
-    models <- data.frame(name=c("direct", "withC14", "bayesian"), intercept=c(mDirectParams$intercept, mWithC14Params$intercept, median(post.samples$alpha)), slope=c(mDirectParams$slope, mWithC14Params$slope, median(post.samples$beta)), sampleSize=nrow(sites))
-    return(models)
-}
-
 #### PARAMS
 
 # number of sites
-N=2000
+N=1000
 # range of excavated fractions 
-excavatedPerc = c(0.01,0.02,0.03,0.04,0.05,0.1)
+#excavatedPerc = c(0.01,0.02,0.03,0.04,0.05,0.1)
+excavatedPerc = c(0.01,0.03,0.05,0.1)
 iterations = 100
 
-alpha=1000
+alpha=3000
 # rate of expansion
 betaM = -0.8
-betaSD = 0.1
-beta=rnorm(N, betaM, betaSD)
-
+#betaSD = 0.05
+#beta=rnorm(N, betaM, betaSD)
+sigma <- 10
 
 #distance from origin
-sites <- data.frame(distance=runif(N,min=0,max=1000))
+sites <- data.frame(distance=runif(N,min=0,max=2000))
 # date of earliest farming at the origin
 # generation of possible dates of arrival
-sites$arrival=alpha+beta*sites$distance
+sites$arrival <- as.integer(rnorm(nrow(sites), mean=alpha+betaM*sites$distance, sd=sigma))
+
+ggplot(sites, aes(x=distance, y=arrival)) + geom_point()
+
 
 estimates <- data.frame(name=character(), intercept=double(), slope=double, percentage=double)  
 for(j in 1:iterations)
@@ -101,50 +77,16 @@ for(j in 1:iterations)
 
 
 
-ggplot(estimates, aes(x=percentage, y=slope, col=name)) + geom_point() + geom_hline(yintercept=betaM)
-
-ggplot(estimates, aes(x=percentage, y=intercept, col=name)) + geom_point() + geom_hline(yintercept=alpha)
 
 ggplot(estimates, aes(x=as.factor(percentage), y=slope, fill=name)) + geom_boxplot() + geom_hline(yintercept=betaM)
 
 ggplot(estimates, aes(x=as.factor(percentage), y=intercept, fill=name)) + geom_boxplot() + geom_hline(yintercept=alpha)
 
-# ggplot(estimates, aes(x=percentage, y=slope, col=name)) + geom_jitter(width=0.005, height=0) + geom_hline(yintercept=betaM) + xlim(0,0.1)
-#ggplot(sites, aes(x=distance, y=arrival)) + geom_point(data=sites, alpha=0.1) + geom_point(data=excavatedSites, size=1) +geom_abline(data=models, aes(slope=slope, intercept=intercept, col=name), size=1, linetype="dashed")
-
-
-
-############### raw sample
-
-# number of sites
-# range of excavated fractions 
-#excavatedPerc = c(0.01,0.02,0.03,0.04,0.05,0.1,0.25,0.5)
-N = c(100,200,300,400,500,1000)
-iterations = 10
-
-alpha=8000
-# rate of expansion
-betaM = -0.8
-betaSD = 0.1
-
-
-estimatesRaw <- data.frame(name=character(), intercept=double(), slope=double, sampleSize=double)  
-for(j in 1:iterations)
-{
-    cat(sprintf("#################### starting iteration %d of %d\n", j, iterations))
-    for(i in N)
-    {
-        beta=rnorm(i, betaM, betaSD)
-
-        #distance from origin
-        sites <- data.frame(distance=runif(i,min=0,max=5000))
-        # date of earliest farming at the origin
-        # generation of possible dates of arrival
-        sites$arrival=alpha+beta*sites$distance
-
-        cat(sprintf("\t################ sample size %d\n", i))
-        estimatesRaw <- rbind(estimatesRaw, estimateRawParams(sites))
-    }
-}
+pdf("sigma1b.pdf", width=10, height=25)
+g1 <- ggplot(sites, aes(x=distance, y=arrival)) + geom_point(alpha=0.25)
+g2 <- ggplot(estimates, aes(x=as.factor(percentage), y=slope, fill=name)) + geom_boxplot() + geom_hline(yintercept=betaM)
+g3 <- ggplot(estimates, aes(x=as.factor(percentage), y=intercept, fill=name)) + geom_boxplot() + geom_hline(yintercept=alpha)
+grid.arrange(g1,g2,g3)
+dev.off()
 
 
