@@ -1,6 +1,8 @@
 
 source("../jagsCode.R")
 
+library(rcarbon)
+library(rethinking)
 
 
 # 0 example test of dating a C14 sample
@@ -44,7 +46,6 @@ fitted.beta <- coefficients(logModel)[2]
 
 
 # 2- calibrate calendar to C14 dates
-library(rcarbon)
 uncalibrated <- uncalibrate(arrival, calCurves = "intcal13")
 
 arrivalC14 = round(uncalibrated$ccCRA)
